@@ -1,101 +1,191 @@
-// api/generate-capsule/index.js - 修复版
-const axios = require('axios');
+// index.js - 修复版服务器
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const url = require('url');
 
-module.exports = async (req, res) => {
-  console.log('API called with method:', req.method);
-  
-  try {
-    const { input } = req.body;
-    
-    // 从环境变量获取密钥
-    const ZHIPU_API_KEY = process.env.ZHIPU_API_KEY;
-    
-    console.log('Received input:', input ? input.substring(0, 50) + '...' : 'empty');
-    
-    if (!input) {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({
-        letter: '请先输入一些内容，分享你此刻的想法吧！',
-        status: 'error'
-      }));
-    }
+const port = process.env.PORT || 3000;
 
-    try {
-      // 调用智谱AI API
-      const response = await axios.post(
-        'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-        {
-          model: "glm-4",
-          messages: [{
-            role: "user",
-            content: `请你扮演5年后的用户本人，基于用户当前的状态和心情，给现在的他/她写一封温暖、鼓励的完整信件。
-
-用户当前的想法是："${input}"
-
-写作要求：
-1. 身份：你是【5年后的用户】，用第一人称"我"来写
-2. 口吻：亲切、真诚、充满希望，像朋友间的私密信件  
-3. 内容：回应当前情绪，分享积极变化，给予温暖祝福
-4. 长度：250-350字，自然流畅
-
-现在请开始写信：`
-          }],
-          temperature: 0.8,
-          max_tokens: 800
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${ZHIPU_API_KEY}`,
-            'Content-Type': 'application/json'
-          },
-          timeout: 30000
-        }
-      );
-
-      const letter = response.data.choices[0].message.content;
-      console.log('AI response received, length:', letter.length);
-
-      res.writeHead(200, { 
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      });
-      res.end(JSON.stringify({
-        letter: letter,
-        status: 'success',
-        timestamp: new Date().toISOString()
-      }));
-
-    } catch (error) {
-      console.error('AI API Error:', error.message);
-      
-      // 备用回复
-      const fallbackLetters = [
-        `亲爱的现在的我，\n\n我是5年后的你。看到你此刻的分享，我想告诉你，生命中的每一个阶段都有其独特的意义。\n\n那些让你思考的时刻，那些让你成长的经历，都在悄悄塑造着更美好的你。相信时间的魔力，保持心灵的开放，未来会以你意想不到的方式展开。\n\n—— 永远相信你的未来我`,
-
-        `嗨！现在的你，\n\n我是未来版本的你！听说你正在思考，这真是太棒了！\n\n每一个真诚的思考都是通向更好未来的钥匙。想象一下，3年后的你在回头看时，会深深感激现在这个勇敢探索的自己。\n\n✨ 与你同行的未来我`
-      ];
-      
-      const randomLetter = fallbackLetters[Math.floor(Math.random() * fallbackLetters.length)];
-      
-      res.writeHead(200, { 
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      });
-      res.end(JSON.stringify({
-        letter: randomLetter,
-        status: 'success',
-        mode: 'fallback'
-      }));
-    }
-  } catch (error) {
-    console.error('Request processing error:', error);
-    res.writeHead(500, { 
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*'
-    });
-    res.end(JSON.stringify({ 
-      error: 'Request processing failed',
-      details: error.message 
-    }));
-  }
+const mimeTypes = {
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.jpg': 'image/jpg',
+  '.gif': 'image/gif',
+  '.ico': 'image/x-icon',
+  '.svg': 'image/svg+xml'
 };
+
+// 解析请求体
+function parseBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk.toString();
+    });
+    req.on('end', () => {
+      try {
+        if (body) {
+          resolve(JSON.parse(body));
+        } else {
+          resolve({});
+        }
+      } catch (error) {
+        reject(error);
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
+const server = http.createServer(async (req, res) => {
+  const parsedUrl = url.parse(req.url, true);
+  const pathname = parsedUrl.pathname;
+
+  console.log(`收到请求: ${req.method} ${pathname}`);
+
+  // 设置 CORS 头部 - 完整支持
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Max-Age', '86400');
+
+  // 处理预检请求
+  if (req.method === 'OPTIONS') {
+    console.log('处理 OPTIONS 预检请求');
+    res.writeHead(200);
+    res.end();
+    return;
+  }
+
+  // API 路由处理
+  if (pathname === '/api/generate-capsule' && req.method === 'POST') {
+    console.log('处理 API 请求');
+    try {
+      const body = await parseBody(req);
+      console.log('解析的请求体:', body);
+      
+      // 动态导入 API 处理器
+      const apiHandler = require('./api/generate-capsule/index.js');
+      
+      // 创建增强的请求对象
+      const enhancedReq = {
+        ...req,
+        body: body,
+        method: req.method,
+        url: req.url,
+        headers: req.headers
+      };
+      
+      // 创建增强的响应对象
+      const enhancedRes = {
+        ...res,
+        setHeader: function(name, value) {
+          res.setHeader(name, value);
+        },
+        writeHead: function(statusCode, headers) {
+          res.writeHead(statusCode, headers);
+        },
+        end: function(data) {
+          console.log('API 响应完成');
+          res.end(data);
+        }
+      };
+      
+      await apiHandler(enhancedReq, enhancedRes);
+    } catch (error) {
+      console.error('API 处理错误:', error);
+      res.writeHead(500, { 
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      });
+      res.end(JSON.stringify({ 
+        error: 'Internal server error', 
+        details: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      }));
+    }
+    return;
+  }
+
+  // 静态文件服务
+  let filePath = pathname === '/' ? '/index.html' : pathname;
+  filePath = path.join(__dirname, filePath);
+
+  // 安全检查：防止目录遍历
+  if (!filePath.startsWith(__dirname)) {
+    res.writeHead(403);
+    res.end('Forbidden');
+    return;
+  }
+
+  const extname = String(path.extname(filePath)).toLowerCase();
+  const contentType = mimeTypes[extname] || 'text/html';
+
+  fs.readFile(filePath, (error, content) => {
+    if (error) {
+      if (error.code === 'ENOENT') {
+        console.log('文件未找到，返回 index.html');
+        // 文件不存在，返回 index.html（支持前端路由）
+        fs.readFile(path.join(__dirname, 'index.html'), (err, content) => {
+          if (err) {
+            res.writeHead(404);
+            res.end('File not found');
+          } else {
+            res.writeHead(200, { 'Content-Type': 'text/html' });
+            res.end(content, 'utf-8');
+          }
+        });
+      } else {
+        console.error('文件读取错误:', error);
+        res.writeHead(500);
+        res.end('Server error: ' + error.code);
+      }
+    } else {
+      console.log('提供静态文件:', filePath);
+      res.writeHead(200, { 'Content-Type': contentType });
+      res.end(content, 'utf-8');
+    }
+  });
+});
+
+server.on('clientError', (err, socket) => {
+  console.error('客户端错误:', err);
+  socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
+});
+
+server.listen(port, () => {
+  console.log(`🚀 服务器运行在 http://localhost:${port}/`);
+  console.log(`📡 API 端点: http://localhost:${port}/api/generate-capsule`);
+  console.log(`🌐 静态文件服务已启用`);
+});
+
+// 优雅关闭
+process.on('SIGTERM', () => {
+  console.log('收到 SIGTERM，优雅关闭服务器');
+  server.close(() => {
+    console.log('服务器已关闭');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('收到 SIGINT，优雅关闭服务器');
+  server.close(() => {
+    console.log('服务器已关闭');
+    process.exit(0);
+  });
+});
+
+// 未处理的Promise拒绝
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('未处理的 Promise 拒绝:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('未捕获的异常:', error);
+  process.exit(1);
+});
