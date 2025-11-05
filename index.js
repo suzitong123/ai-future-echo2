@@ -1,10 +1,12 @@
-// index.js - 修复版服务器
+// index.js - 统一请求体解析版本
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
 
 const port = process.env.PORT || 3000;
+
+console.log('🚀 启动服务器...');
 
 const mimeTypes = {
   '.html': 'text/html',
@@ -43,13 +45,16 @@ const server = http.createServer(async (req, res) => {
   const parsedUrl = url.parse(req.url, true);
   const pathname = parsedUrl.pathname;
 
+  console.log(`📨 收到请求: ${req.method} ${pathname}`);
+
   // 设置 CORS 头部
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
 
   // 处理预检请求
   if (req.method === 'OPTIONS') {
+    console.log('🔄 处理 OPTIONS 预检请求');
     res.writeHead(200);
     res.end();
     return;
@@ -57,16 +62,34 @@ const server = http.createServer(async (req, res) => {
 
   // API 路由处理
   if (pathname === '/api/generate-capsule' && req.method === 'POST') {
+    console.log('🎯 处理 API 请求');
     try {
       const body = await parseBody(req);
+      console.log('📝 解析的请求体:', body);
       
-      // 动态导入 API 处理器
+      // 动态导入 API 处理器，并传递解析好的 body
       const apiHandler = require('./api/generate-capsule/index.js');
-      await apiHandler({ ...req, body }, res);
+      
+      // 创建增强的请求对象，包含解析好的 body
+      const enhancedReq = {
+        method: req.method,
+        url: req.url,
+        headers: req.headers,
+        body: body // 直接传递解析好的 body
+      };
+      
+      await apiHandler(enhancedReq, res);
+      
     } catch (error) {
-      console.error('API Error:', error);
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Internal server error', details: error.message }));
+      console.error('❌ API 处理错误:', error);
+      res.writeHead(500, { 
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      });
+      res.end(JSON.stringify({ 
+        error: 'Internal server error', 
+        details: error.message
+      }));
     }
     return;
   }
@@ -75,20 +98,12 @@ const server = http.createServer(async (req, res) => {
   let filePath = pathname === '/' ? '/index.html' : pathname;
   filePath = path.join(__dirname, filePath);
 
-  // 安全检查：防止目录遍历
-  if (!filePath.startsWith(__dirname)) {
-    res.writeHead(403);
-    res.end('Forbidden');
-    return;
-  }
-
-  const extname = path.extname(filePath);
-  const contentType = mimeTypes[extname] || 'text/html';
+  console.log('📁 提供静态文件:', filePath);
 
   fs.readFile(filePath, (error, content) => {
     if (error) {
       if (error.code === 'ENOENT') {
-        // 文件不存在，返回 index.html（支持前端路由）
+        console.log('📄 文件未找到，返回 index.html');
         fs.readFile(path.join(__dirname, 'index.html'), (err, content) => {
           if (err) {
             res.writeHead(404);
@@ -99,10 +114,14 @@ const server = http.createServer(async (req, res) => {
           }
         });
       } else {
+        console.error('❌ 文件读取错误:', error);
         res.writeHead(500);
         res.end('Server error: ' + error.code);
       }
     } else {
+      const extname = path.extname(filePath);
+      const contentType = mimeTypes[extname] || 'text/html';
+      
       res.writeHead(200, { 'Content-Type': contentType });
       res.end(content, 'utf-8');
     }
@@ -110,23 +129,16 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}/`);
-  console.log(`API endpoint: http://localhost:${port}/api/generate-capsule`);
+  console.log(`✅ 服务器运行在 http://localhost:${port}/`);
+  console.log(`🎯 API 端点: http://localhost:${port}/api/generate-capsule`);
+  console.log(`📁 静态文件服务已启用`);
 });
 
-// 优雅关闭
-process.on('SIGTERM', () => {
-  console.log('Received SIGTERM, shutting down gracefully');
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
+// 错误处理
+server.on('error', (error) => {
+  console.error('❌ 服务器错误:', error);
 });
 
-process.on('SIGINT', () => {
-  console.log('Received SIGINT, shutting down gracefully');
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
+process.on('uncaughtException', (error) => {
+  console.error('❌ 未捕获异常:', error);
 });
