@@ -1,7 +1,8 @@
-// index.js - 简单的静态文件服务器
+// index.js - 修复版服务器
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const url = require('url');
 
 const port = process.env.PORT || 3000;
 
@@ -16,25 +17,70 @@ const mimeTypes = {
   '.ico': 'image/x-icon'
 };
 
-const server = http.createServer((req, res) => {
+// 解析请求体
+function parseBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk.toString();
+    });
+    req.on('end', () => {
+      try {
+        if (body) {
+          resolve(JSON.parse(body));
+        } else {
+          resolve({});
+        }
+      } catch (error) {
+        reject(error);
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
+const server = http.createServer(async (req, res) => {
+  const parsedUrl = url.parse(req.url, true);
+  const pathname = parsedUrl.pathname;
+
+  // 设置 CORS 头部
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  // 处理预检请求
+  if (req.method === 'OPTIONS') {
+    res.writeHead(200);
+    res.end();
+    return;
+  }
+
   // API 路由处理
-  if (req.url.startsWith('/api/') && req.method === 'POST') {
-    // API 请求转发到对应的处理文件
-    const apiPath = path.join(__dirname, req.url, 'index.js');
-    
-    if (fs.existsSync(apiPath)) {
-      const apiHandler = require(apiPath);
-      return apiHandler(req, res);
-    } else {
-      res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'API endpoint not found' }));
+  if (pathname === '/api/generate-capsule' && req.method === 'POST') {
+    try {
+      const body = await parseBody(req);
+      
+      // 动态导入 API 处理器
+      const apiHandler = require('./api/generate-capsule/index.js');
+      await apiHandler({ ...req, body }, res);
+    } catch (error) {
+      console.error('API Error:', error);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Internal server error', details: error.message }));
     }
     return;
   }
 
   // 静态文件服务
-  let filePath = req.url === '/' ? '/index.html' : req.url;
+  let filePath = pathname === '/' ? '/index.html' : pathname;
   filePath = path.join(__dirname, filePath);
+
+  // 安全检查：防止目录遍历
+  if (!filePath.startsWith(__dirname)) {
+    res.writeHead(403);
+    res.end('Forbidden');
+    return;
+  }
 
   const extname = path.extname(filePath);
   const contentType = mimeTypes[extname] || 'text/html';
@@ -65,4 +111,22 @@ const server = http.createServer((req, res) => {
 
 server.listen(port, () => {
   console.log(`Server running at http://localhost:${port}/`);
+  console.log(`API endpoint: http://localhost:${port}/api/generate-capsule`);
+});
+
+// 优雅关闭
+process.on('SIGTERM', () => {
+  console.log('Received SIGTERM, shutting down gracefully');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('Received SIGINT, shutting down gracefully');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
 });
