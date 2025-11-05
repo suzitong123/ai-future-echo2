@@ -140,6 +140,8 @@
             white-space: pre-wrap;
             font-size: clamp(0.9rem, 4vw, 1rem);
             overflow-wrap: break-word;
+            max-height: 400px;
+            overflow-y: auto;
         }
 
         .voice-controls {
@@ -224,6 +226,26 @@
             line-height: 1.4;
         }
 
+        .debug-info {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            z-index: 9999;
+            max-width: 200px;
+        }
+
+        .content-length {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -286,6 +308,7 @@
             #futureText {
                 padding: 15px;
                 font-size: 0.9rem;
+                max-height: 300px;
             }
             
             .btn-primary {
@@ -312,12 +335,14 @@
         <div id="loading" class="loading" style="display: none;">
             <div class="spinner"></div>
             <p>🤖 AI正在构思来自未来的信件...</p>
+            <p id="loadingDetail" style="font-size: 12px; margin-top: 10px;"></p>
         </div>
 
         <div id="result" style="display: none;">
             <div class="result-section">
                 <h3>💌 来自未来的信</h3>
                 <p id="futureText"></p>
+                <div class="content-length" id="contentLength"></div>
             </div>
 
             <div class="result-section">
@@ -337,16 +362,39 @@
         </div>
     </div>
 
+    <div id="debugInfo" class="debug-info" style="display: none;"></div>
+
     <script>
         // Zeabur 环境配置 - 使用相对路径
         const API_BASE = '';
         const API_ENDPOINT = '/api/generate-capsule';
 
-        console.log('Zeabur 环境配置:', { API_BASE, API_ENDPOINT });
+        // 设备检测
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isChrome = /Chrome/.test(navigator.userAgent);
+
+        console.log('环境信息:', {
+            isMobile,
+            isChrome,
+            userAgent: navigator.userAgent,
+            API_BASE,
+            API_ENDPOINT
+        });
 
         let currentVoiceText = '';
         let currentSpeech = null;
         let availableVoices = [];
+
+        // 显示调试信息
+        function showDebugInfo() {
+            const debugInfo = document.getElementById('debugInfo');
+            debugInfo.innerHTML = `
+                📱 ${isMobile ? '移动端' : '桌面端'} 
+                🌐 ${isChrome ? 'Chrome' : '其他浏览器'}
+                📍 ${window.location.hostname}
+            `;
+            debugInfo.style.display = 'block';
+        }
 
         // 预加载语音引擎
         function preloadVoices() {
@@ -373,7 +421,7 @@
             const qualityInfo = document.getElementById('voiceQualityInfo');
             
             if (bestVoice) {
-                qualityInfo.innerHTML = '语音质量: <strong>良好</strong>';
+                qualityInfo.innerHTML = `语音质量: <strong>良好</strong> (${bestVoice.name})`;
             } else {
                 qualityInfo.innerHTML = '语音质量: <strong>基础</strong>';
             }
@@ -440,6 +488,7 @@
                 stopVoice();
                 
                 const firstTwoParagraphs = extractFirstTwoParagraphs(currentVoiceText);
+                console.log('语音播放内容:', firstTwoParagraphs);
                 
                 currentSpeech = new SpeechSynthesisUtterance(firstTwoParagraphs);
                 currentSpeech.lang = 'zh-CN';
@@ -483,7 +532,7 @@
             }
         }
 
-        // 生成未来回音 - Zeabur 适配版本
+        // 生成未来回音 - 增强版
         async function generateCapsule() {
             const userInput = document.getElementById('userInput').value.trim();
             if (!userInput) {
@@ -494,31 +543,51 @@
             const generateBtn = document.getElementById('generateBtn');
             const loadingElement = document.getElementById('loading');
             const resultElement = document.getElementById('result');
+            const loadingDetail = document.getElementById('loadingDetail');
 
             generateBtn.disabled = true;
             generateBtn.textContent = '🤖 构思未来中...';
             loadingElement.style.display = 'block';
             resultElement.style.display = 'none';
+            loadingDetail.textContent = '正在连接服务器...';
 
             try {
                 console.log('发送请求到:', API_BASE + API_ENDPOINT);
+                console.log('用户输入:', userInput);
+                
+                loadingDetail.textContent = '正在调用AI生成内容...';
                 
                 // Zeabur API 调用 - 使用相对路径
                 const response = await fetch(API_BASE + API_ENDPOINT, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                    'X-Requested-With': 'XMLHttpRequest'
                     },
                     body: JSON.stringify({ 
                         input: userInput,
-                        timestamp: Date.now()
-                    })
+                        timestamp: Date.now(),
+                        source: isMobile ? 'mobile' : 'desktop'
+                    }),
+                    mode: 'cors',
+                    credentials: 'omit'
                 });
 
                 console.log('响应状态:', response.status, response.statusText);
+                loadingDetail.textContent = '正在处理响应...';
 
                 if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('响应错误:', errorText);
                     throw new Error(`网络请求失败: ${response.status} ${response.statusText}`);
+                }
+
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('非JSON响应:', text);
+                    throw new Error('服务器返回了非JSON响应');
                 }
 
                 const data = await response.json();
@@ -528,6 +597,10 @@
                     throw new Error(data.letter || '生成失败');
                 }
 
+                // 显示内容长度
+                const contentLength = document.getElementById('contentLength');
+                contentLength.textContent = `内容长度: ${data.letter.length} 字符`;
+                
                 document.getElementById('futureText').textContent = data.letter;
                 currentVoiceText = data.letter;
                 document.getElementById('voiceStatus').innerHTML = 
@@ -536,17 +609,26 @@
                 updateVoiceQualityInfo();
                 resultElement.style.display = 'block';
 
+                // 移动端特殊提示
+                if (isMobile) {
+                    console.log('移动端生成成功');
+                }
+
             } catch (error) {
                 console.error('API调用错误:', error);
                 
                 // 使用模拟数据作为备用
                 const mockLetters = [
-                    `亲爱的现在的我，我是5年后的你。\n\n看到你此刻的想法："${userInput}"，我想告诉你，生命就像一幅温暖的绘本，每一页都充满色彩。现在的迷茫，未来的你会感激，因为正是这些时刻塑造了独特的你。\n\n记住：最美好的画面，往往需要耐心等待。`,
+                    `亲爱的现在的我，我是5年后的你。\n\n看到你此刻的想法："${userInput}"，我想告诉你，生命就像一幅温暖的绘本，每一页都充满色彩。现在的迷茫，未来的你会感激，因为正是这些时刻塑造了独特的你。\n\n记住：最美好的画面，往往需要耐心等待。那些让你辗转反侧的夜晚，最终都会变成照亮前路的星光。每一个真诚的选择，都在悄悄引领你走向更好的明天。`,
                     
-                    `嗨，现在的你！我是未来的自己。\n\n听说你在思考"${userInput}"，这让我想起了曾经的自己。你知道吗？那些让你辗转反侧的夜晚，最终都变成了照亮前路的星光。\n\n相信自己的选择，每一步都算数。`
+                    `嗨，现在的你！我是未来的自己。\n\n听说你在思考"${userInput}"，这让我想起了曾经的自己。你知道吗？那些让你辗转反侧的夜晚，最终都变成了照亮前路的星光。\n\n相信自己的选择，每一步都算数。生命中的每个阶段都有其独特的意义，现在的困惑和探索，正是未来成长的基石。保持心灵的开放，勇敢前行，你会发现自己比想象中更强大。`
                 ];
                 
                 const randomLetter = mockLetters[Math.floor(Math.random() * mockLetters.length)];
+                
+                // 显示内容长度
+                const contentLength = document.getElementById('contentLength');
+                contentLength.textContent = `内容长度: ${randomLetter.length} 字符 (演示模式)`;
                 
                 document.getElementById('futureText').textContent = randomLetter;
                 currentVoiceText = randomLetter;
@@ -556,9 +638,9 @@
                 updateVoiceQualityInfo();
                 resultElement.style.display = 'block';
                 
-                // 显示详细错误信息（开发时有用）
+                // 显示详细错误信息
                 if (error.message.includes('网络请求失败')) {
-                    alert('演示模式：当前显示模拟数据。API连接失败，请检查服务器状态。');
+                    alert('演示模式：当前显示模拟数据。API连接失败，请检查网络连接。');
                 }
 
             } finally {
@@ -570,7 +652,10 @@
 
         // 页面初始化
         window.addEventListener('load', function() {
+            showDebugInfo();
             preloadVoices();
+            
+            console.log('页面初始化完成');
             
             // 添加回车键支持
             document.getElementById('userInput').addEventListener('keypress', function(e) {
@@ -578,6 +663,12 @@
                     generateCapsule();
                 }
             });
+
+            // 移动端特殊处理
+            if (isMobile) {
+                console.log('移动端优化启用');
+                document.body.style.cursor = 'pointer';
+            }
         });
 
         // 定期更新语音列表
@@ -586,7 +677,7 @@
                 availableVoices = speechSynthesis.getVoices();
                 updateVoiceQualityInfo();
             }
-        }, 3000);
+        }, 5000);
 
         // 错误处理
         window.addEventListener('error', function(e) {
