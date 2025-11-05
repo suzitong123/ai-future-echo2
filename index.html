@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI 未来回音</title>
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#667eea">
+    <style>
+        /* 基础重置和字体 */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            padding-bottom: calc(15px + env(safe-area-inset-bottom));
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 25px 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            width: 100%;
+            max-width: 600px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin: 10px 0;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 8px;
+            font-size: clamp(1.8rem, 6vw, 2.5rem);
+            line-height: 1.2;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 25px;
+            font-size: clamp(0.9rem, 4vw, 1.1rem);
+            line-height: 1.4;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 120px;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            font-size: 16px;
+            resize: vertical;
+            transition: all 0.3s ease;
+            font-family: inherit;
+            min-height: 44px;
+            line-height: 1.4;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 16px 24px;
+            font-size: 18px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            font-weight: 600;
+            min-height: 50px;
+            touch-action: manipulation;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            transform: none;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        #result {
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 1px solid #eee;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .result-section {
+            margin-bottom: 20px;
+        }
+
+        .result-section h3 {
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: clamp(1.1rem, 4vw, 1.3rem);
+        }
+
+        #futureText {
+            background: #f8f9fa;
+            padding: 18px;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            font-size: clamp(0.9rem, 4vw, 1rem);
+            overflow-wrap: break-word;
+        }
+
+        .voice-controls {
+            display: flex;
+            gap: 10px;
+            margin: 12px 0;
+        }
+
+        .voice-btn {
+            padding: 14px 20px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            flex: 1;
+            min-height: 48px;
+            touch-action: manipulation;
+        }
+
+        .play-btn {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .play-btn:hover {
+            background: #45a049;
+            transform: translateY(-1px);
+        }
+
+        .stop-btn {
+            background: #f44336;
+            color: white;
+        }
+
+        .stop-btn:hover {
+            background: #da190b;
+            transform: translateY(-1px);
+        }
+
+        .voice-quality {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 10px 0;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .quality-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4CAF50;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 30px 20px;
+            color: #666;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        .loading p {
+            font-size: clamp(0.9rem, 4vw, 1rem);
+        }
+
+        #voiceStatus {
+            color: #666;
+            font-size: 13px;
+            margin-top: 8px;
+            line-height: 1.4;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+                align-items: flex-start;
+                padding-bottom: calc(10px + env(safe-area-inset-bottom));
+            }
+            
+            .container {
+                padding: 20px 15px;
+                margin: 5px 0;
+                border-radius: 16px;
+            }
+            
+            .voice-controls {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .voice-btn {
+                padding: 16px 20px;
+                font-size: 16px;
+            }
+            
+            textarea {
+                font-size: 16px;
+                padding: 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 8px;
+                padding-bottom: calc(8px + env(safe-area-inset-bottom));
+            }
+            
+            .container {
+                padding: 18px 12px;
+                border-radius: 14px;
+            }
+            
+            h1 {
+                font-size: 1.6rem;
+            }
+            
+            .subtitle {
+                font-size: 0.85rem;
+                margin-bottom: 20px;
+            }
+            
+            #futureText {
+                padding: 15px;
+                font-size: 0.9rem;
+            }
+            
+            .btn-primary {
+                padding: 14px 20px;
+                font-size: 16px;
+                min-height: 48px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🕒 AI 未来回音</h1>
+        <p class="subtitle">写下此刻的心声，遇见未来的自己</p>
+
+        <div class="input-group">
+            <textarea id="userInput" placeholder="此刻的你，在想什么？有什么梦想或困惑？例如：我对即将到来的毕业既期待又不安，不知道未来的路会怎样..."></textarea>
+        </div>
+
+        <button id="generateBtn" class="btn-primary" onclick="generateCapsule()">
+            ✨ 生成未来回音
+        </button>
+
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>🤖 AI正在构思来自未来的信件...</p>
+        </div>
+
+        <div id="result" style="display: none;">
+            <div class="result-section">
+                <h3>💌 来自未来的信</h3>
+                <p id="futureText"></p>
+            </div>
+
+            <div class="result-section">
+                <h3>🎙️ 未来的声音</h3>
+                <div class="voice-quality">
+                    <div class="quality-indicator"></div>
+                    <span id="voiceQualityInfo">高质量语音优化中...</span>
+                </div>
+                <div class="voice-controls">
+                    <button class="voice-btn play-btn" onclick="playVoice()">▶️ 播放语音</button>
+                    <button class="voice-btn stop-btn" onclick="stopVoice()">⏹️ 停止播放</button>
+                </div>
+                <div id="voiceStatus">
+                    点击"播放语音"聆听正文前两段
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Zeabur 环境配置
+        const API_BASE = '';
+        const API_ENDPOINT = '/api/generate-capsule';
+
+        console.log('Zeabur 环境配置:', { API_BASE, API_ENDPOINT });
+
+        let currentVoiceText = '';
+        let currentSpeech = null;
+        let availableVoices = [];
+
+        // 预加载语音引擎
+        function preloadVoices() {
+            if ('speechSynthesis' in window) {
+                availableVoices = speechSynthesis.getVoices();
+                
+                const loadVoices = () => {
+                    availableVoices = speechSynthesis.getVoices();
+                    updateVoiceQualityInfo();
+                    
+                    if (availableVoices.length === 0) {
+                        setTimeout(loadVoices, 3000);
+                    }
+                };
+                
+                speechSynthesis.onvoiceschanged = loadVoices;
+                loadVoices();
+            }
+        }
+
+        // 更新语音质量信息
+        function updateVoiceQualityInfo() {
+            const bestVoice = findBestChineseVoice();
+            const qualityInfo = document.getElementById('voiceQualityInfo');
+            
+            if (bestVoice) {
+                qualityInfo.innerHTML = '语音质量: <strong>良好</strong>';
+            } else {
+                qualityInfo.innerHTML = '语音质量: <strong>基础</strong>';
+            }
+        }
+
+        // 寻找最佳中文语音
+        function findBestChineseVoice() {
+            const voices = availableVoices.length ? availableVoices : speechSynthesis.getVoices();
+            
+            if (voices.length === 0) return null;
+            
+            const voicePriority = [
+                voice => voice.name.includes('Xiaoxiao') && voice.lang === 'zh-CN',
+                voice => voice.name.includes('Yunxi') && voice.lang === 'zh-CN',
+                voice => voice.name.includes('Microsoft') && voice.name.includes('Female'),
+                voice => voice.lang.includes('zh') && voice.name.includes('Female'),
+                voice => voice.lang.includes('zh')
+            ];
+            
+            for (const priority of voicePriority) {
+                const voice = voices.find(priority);
+                if (voice) return voice;
+            }
+            
+            return voices.find(voice => voice.lang.includes('zh')) || voices[0];
+        }
+
+        // 提取正文前两段
+        function extractFirstTwoParagraphs(text) {
+            const paragraphs = text.split('\n\n').filter(p => p.trim().length > 0);
+            
+            let startIndex = 0;
+            for (let i = 0; i < paragraphs.length; i++) {
+                const paragraph = paragraphs[i].trim();
+                if (!paragraph.includes('亲爱的') && !paragraph.includes('你好')) {
+                    startIndex = i;
+                    break;
+                }
+            }
+            
+            const validParagraphs = [];
+            for (let i = startIndex; i < paragraphs.length && validParagraphs.length < 2; i++) {
+                const paragraph = paragraphs[i].trim();
+                if (paragraph && paragraph.length > 10) {
+                    validParagraphs.push(paragraph);
+                }
+            }
+            
+            if (validParagraphs.length === 0 && paragraphs.length > 0) {
+                return paragraphs[0];
+            }
+            
+            return validParagraphs.join('。') + '。';
+        }
+
+        // 播放语音
+        function playVoice() {
+            if (!currentVoiceText) {
+                alert('暂无语音内容');
+                return;
+            }
+
+            if ('speechSynthesis' in window) {
+                stopVoice();
+                
+                const firstTwoParagraphs = extractFirstTwoParagraphs(currentVoiceText);
+                
+                currentSpeech = new SpeechSynthesisUtterance(firstTwoParagraphs);
+                currentSpeech.lang = 'zh-CN';
+                currentSpeech.rate = 0.9;
+                currentSpeech.pitch = 1.1;
+                currentSpeech.volume = 1.0;
+                
+                const bestVoice = findBestChineseVoice();
+                if (bestVoice) {
+                    currentSpeech.voice = bestVoice;
+                }
+                
+                currentSpeech.onstart = function() {
+                    document.getElementById('voiceStatus').innerHTML = 
+                        '🔊 <strong>语音播放中...</strong> | 正在朗读正文前两段';
+                };
+                
+                currentSpeech.onend = function() {
+                    document.getElementById('voiceStatus').innerHTML = 
+                        '✅ 播放完成 | 正文前两段朗读完毕';
+                };
+                
+                currentSpeech.onerror = function(event) {
+                    document.getElementById('voiceStatus').innerHTML = 
+                        '❌ 播放失败 | 请尝试使用Chrome浏览器';
+                };
+                
+                window.speechSynthesis.speak(currentSpeech);
+            } else {
+                alert('您的浏览器不支持语音合成，建议使用最新版Chrome浏览器。');
+            }
+        }
+
+        // 停止语音
+        function stopVoice() {
+            if (window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+                document.getElementById('voiceStatus').innerHTML = 
+                    '⏹️ 已停止播放 | 点击播放按钮重新聆听';
+            }
+        }
+
+        // 生成未来回音 - Zeabur 版本
+        async function generateCapsule() {
+            const userInput = document.getElementById('userInput').value.trim();
+            if (!userInput) {
+                alert('请先写下一些内容吧！');
+                return;
+            }
+
+            const generateBtn = document.getElementById('generateBtn');
+            const loadingElement = document.getElementById('loading');
+            const resultElement = document.getElementById('result');
+
+            generateBtn.disabled = true;
+            generateBtn.textContent = '🤖 构思未来中...';
+            loadingElement.style.display = 'block';
+            resultElement.style.display = 'none';
+
+            try {
+                // Zeabur API 调用
+                const response = await fetch(API_BASE + API_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        input: userInput,
+                        timestamp: Date.now()
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('网络请求失败');
+                }
+
+                const data = await response.json();
+
+                document.getElementById('futureText').textContent = data.letter;
+                currentVoiceText = data.letter;
+                document.getElementById('voiceStatus').innerHTML = 
+                    '✅ 准备就绪 | 点击播放聆听正文前两段';
+
+                updateVoiceQualityInfo();
+                resultElement.style.display = 'block';
+
+            } catch (error) {
+                console.log('使用模拟数据:', error.message);
+                // 使用模拟数据
+                const mockLetters = [
+                    `亲爱的现在的我，我是5年后的你。\n\n看到你此刻的想法："${userInput}"，我想告诉你，生命就像一幅温暖的绘本，每一页都充满色彩。现在的迷茫，未来的你会感激，因为正是这些时刻塑造了独特的你。\n\n记住：最美好的画面，往往需要耐心等待。`,
+                    
+                    `嗨，现在的你！我是未来的自己。\n\n听说你在思考"${userInput}"，这让我想起了曾经的自己。你知道吗？那些让你辗转反侧的夜晚，最终都变成了照亮前路的星光。\n\n相信自己的选择，每一步都算数。`
+                ];
+                
+                const randomLetter = mockLetters[Math.floor(Math.random() * mockLetters.length)];
+                
+                document.getElementById('futureText').textContent = randomLetter;
+                currentVoiceText = randomLetter;
+                document.getElementById('voiceStatus').innerHTML = 
+                    '🎵 演示模式 | 点击播放试听正文前两段';
+                
+                updateVoiceQualityInfo();
+                resultElement.style.display = 'block';
+                
+                alert('演示模式：当前显示模拟数据。请确保Zeabur环境变量配置正确。');
+
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.textContent = '✨ 生成未来回音';
+                loadingElement.style.display = 'none';
+            }
+        }
+
+        // 页面初始化
+        window.addEventListener('load', function() {
+            preloadVoices();
+        });
+
+        // 定期更新语音列表
+        setInterval(() => {
+            if (availableVoices.length === 0) {
+                availableVoices = speechSynthesis.getVoices();
+                updateVoiceQualityInfo();
+            }
+        }, 3000);
+    </script>
+</body>
+</html>

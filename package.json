@@ -1,0 +1,14 @@
+{
+  "name": "ai-future-echo",
+  "version": "1.0.0",
+  "description": "AI未来回音 - 与未来的自己对话",
+  "scripts": {
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
+  },
+  "keywords": ["ai", "future", "letter", "nfc"],
+  "author": "Your Name",
+  "license": "MIT"
+}
