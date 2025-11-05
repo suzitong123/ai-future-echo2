@@ -1,88 +1,48 @@
-// index.js - 修正版
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
+// api/generate-capsule/index.js - 简化版（服务器已解析body）
+const axios = require('axios');
 
-const port = process.env.PORT || 3000;
-
-console.log('🚀 启动服务器...');
-
-const server = http.createServer(async (req, res) => {
-  console.log(`📨 收到请求: ${req.method} ${req.url}`);
+module.exports = async (req, res) => {
+  console.log('🎯 API 处理器被调用');
   
-  // CORS 头
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  try {
+    // 直接从 req.body 获取数据（服务器已经解析好了）
+    const { input } = req.body;
+    
+    console.log('📝 接收到的输入:', input);
+    console.log('🔑 API密钥状态:', process.env.ZHIPU_API_KEY ? '已设置' : '未设置');
 
-  // 预检请求
-  if (req.method === 'OPTIONS') {
-    console.log('🔄 处理 OPTIONS 预检请求');
-    res.writeHead(200);
-    return res.end();
-  }
-
-  // API 路由 - 修正拼写
-  if (req.url === '/api/generate-capsule' && req.method === 'POST') {
-    console.log('🎯 处理 API 请求');
-    try {
-      const handler = require('./api/generate-capsule/index.js');
-      return handler(req, res);
-    } catch (error) {
-      console.error('❌ API 处理错误:', error);
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ 
-        error: 'API 处理失败',
-        details: error.message 
+    if (!input) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({
+        letter: '请先输入一些内容，分享你此刻的想法吧！',
+        status: 'error'
       }));
     }
-    return;
+
+    // 测试模式：先返回成功响应
+    const testResponse = {
+      letter: `🎉 后端连接成功！\n\n你的输入是："${input}"\n\n环境变量状态：${process.env.ZHIPU_API_KEY ? '✅ 已设置' : '❌ 未设置'}\n\n这是测试回复，确认API工作正常。`,
+      status: 'success',
+      mode: 'test',
+      timestamp: new Date().toISOString()
+    };
+
+    console.log('📤 发送测试响应');
+    res.writeHead(200, { 
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*'
+    });
+    res.end(JSON.stringify(testResponse));
+
+  } catch (error) {
+    console.error('❌ API 处理器错误:', error);
+    res.writeHead(500, { 
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*'
+    });
+    res.end(JSON.stringify({ 
+      error: 'API processing failed',
+      details: error.message 
+    }));
   }
-
-  // 静态文件服务
-  let filePath = req.url === '/' ? '/index.html' : req.url;
-  filePath = path.join(__dirname, filePath);
-  
-  console.log('📁 提供静态文件:', filePath);
-
-  fs.readFile(filePath, (error, content) => {
-    if (error) {
-      if (error.code === 'ENOENT') {
-        console.log('📄 文件未找到，返回 index.html');
-        fs.readFile(path.join(__dirname, 'index.html'), (err, content) => {
-          if (err) {
-            res.writeHead(404);
-            res.end('Not Found');
-          } else {
-            res.writeHead(200, { 'Content-Type': 'text/html' });
-            res.end(content);
-          }
-        });
-      } else {
-        console.error('❌ 文件读取错误:', error);
-        res.writeHead(500);
-        res.end('Server Error');
-      }
-    } else {
-      const ext = path.extname(filePath);
-      const contentType = 
-        ext === '.html' ? 'text/html' :
-        ext === '.js' ? 'text/javascript' :
-        ext === '.css' ? 'text/css' : 'text/plain';
-      
-      res.writeHead(200, { 'Content-Type': contentType });
-      res.end(content);
-    }
-  });
-});
-
-server.listen(port, () => {
-  console.log(`✅ 服务器运行在 http://localhost:${port}/`);
-  console.log(`🎯 API 端点: http://localhost:${port}/api/generate-capsule`);
-  console.log(`📁 静态文件服务已启用`);
-});
-
-// 错误处理
-server.on('error', (error) => {
-  console.error('❌ 服务器错误:', error);
-});
+};
