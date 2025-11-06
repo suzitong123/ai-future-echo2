@@ -520,34 +520,15 @@
         let availableVoices = [];
         let speechSupported = false;
         let isPlaying = false;
+        let voicesLoaded = false;
 
         // 语音设置 - 优化为温柔女声
         const VOICE_SETTINGS = {
-            rate: 0.85,      // 语速稍慢，更温柔
-            pitch: 1.2,      // 音调稍高，更女性化
-            volume: 0.9,     // 音量适中
+            rate: 0.9,       // 语速稍慢，更温柔
+            pitch: 1.1,      // 音调稍高，更女性化
+            volume: 1.0,     // 音量
             lang: 'zh-CN'
         };
-
-        // 优先选择的温柔女声语音名称（按优先级排序）
-        const PREFERRED_VOICES = [
-            // 中文温柔女声
-            'Ting-Ting',           // Mac 中文女声
-            'Mei-Jia',             // 中文女声
-            'Sin-Ji',              // 中文女声
-            'Xiaoxiao',            // Azure 晓晓
-            'Xiaoyi',              // Azure 晓伊
-            'Yaoyao',              // Azure 瑶瑶
-            'Samantha',            // iOS 女声
-            'Victoria',            // macOS 女声
-            'Karen',               // macOS 澳式英语女声（发音清晰）
-            'Tessa',               // 清晰女声
-            // 通用女声
-            'Google 中文（中国）',
-            'Microsoft Huihui Desktop',
-            'Microsoft Kangkang Desktop',
-            'Microsoft Yaoyao Desktop'
-        ];
 
         // 更新调试信息
         function updateDebugInfo(message) {
@@ -576,7 +557,7 @@
                 voiceControls.style.display = 'flex';
                 voiceQualitySection.style.display = 'flex';
                 voiceSettings.style.display = 'block';
-                preloadVoices();
+                loadVoicesWithRetry();
             } else {
                 voiceSupportInfo.innerHTML = 
                     '<div class="support-info support-warning">⚠️ 当前浏览器不支持语音功能，但您可以使用下方的分享功能保存内容</div>';
@@ -588,71 +569,74 @@
             }
         }
 
-        // 预加载语音引擎
-        function preloadVoices() {
+        // 重试加载语音
+        function loadVoicesWithRetry(retryCount = 0) {
             if (!speechSupported) return;
             
-            availableVoices = speechSynthesis.getVoices();
+            const maxRetries = 5;
             
             const loadVoices = () => {
                 availableVoices = speechSynthesis.getVoices();
-                updateVoiceQualityInfo();
+                updateDebugInfo(`加载语音数量: ${availableVoices.length}, 重试次数: ${retryCount}`);
                 
-                if (availableVoices.length === 0) {
-                    setTimeout(loadVoices, 1000);
+                if (availableVoices.length > 0) {
+                    voicesLoaded = true;
+                    updateVoiceQualityInfo();
+                    updateDebugInfo('语音加载成功');
+                } else if (retryCount < maxRetries) {
+                    updateDebugInfo(`语音加载失败，第${retryCount + 1}次重试...`);
+                    setTimeout(() => loadVoicesWithRetry(retryCount + 1), 1000);
+                } else {
+                    updateDebugInfo('语音加载失败，使用默认设置');
+                    voicesLoaded = true; // 即使没有语音也标记为已加载
                 }
             };
             
-            speechSynthesis.onvoiceschanged = loadVoices;
             loadVoices();
         }
 
         // 寻找最佳温柔女声
         function findBestGentleVoice() {
-            if (!speechSupported) return null;
+            if (!speechSupported || !voicesLoaded) return null;
             
-            const voices = availableVoices.length ? availableVoices : speechSynthesis.getVoices();
+            const voices = availableVoices;
             
-            if (voices.length === 0) return null;
-            
-            // 优先寻找中文温柔女声
-            for (const voiceName of PREFERRED_VOICES) {
-                const voice = voices.find(v => 
-                    v.name.includes(voiceName) || 
-                    v.name.toLowerCase().includes(voiceName.toLowerCase())
-                );
-                if (voice) {
-                    updateDebugInfo(`找到优选语音: ${voice.name}`);
-                    return voice;
-                }
+            if (voices.length === 0) {
+                updateDebugInfo('没有可用的语音');
+                return null;
             }
             
-            // 其次寻找任何中文女声
-            const chineseFemale = voices.find(voice => 
-                voice.lang.includes('zh') && 
-                (voice.name.toLowerCase().includes('female') || 
-                 voice.name.includes('女') ||
-                 voice.name.includes('Female'))
+            // 显示所有可用语音用于调试
+            updateDebugInfo(`可用语音: ${voices.map(v => v.name).join(', ')}`);
+            
+            // 优先寻找中文女声
+            const chineseVoices = voices.filter(voice => 
+                voice.lang.includes('zh') || voice.lang.includes('CN')
             );
-            if (chineseFemale) {
-                updateDebugInfo(`找到中文女声: ${chineseFemale.name}`);
-                return chineseFemale;
+            
+            if (chineseVoices.length > 0) {
+                // 优先选择女性声音
+                const femaleChinese = chineseVoices.find(voice => 
+                    voice.name.toLowerCase().includes('female') ||
+                    voice.name.includes('女') ||
+                    voice.name.includes('Xiao') ||
+                    voice.name.includes('Ting') ||
+                    voice.name.includes('Mei')
+                );
+                
+                if (femaleChinese) {
+                    updateDebugInfo(`选择中文女声: ${femaleChinese.name}`);
+                    return femaleChinese;
+                }
+                
+                // 如果没有明确的女声，选择第一个中文语音
+                updateDebugInfo(`选择中文语音: ${chineseVoices[0].name}`);
+                return chineseVoices[0];
             }
             
-            // 再寻找任何中文语音
-            const chineseVoice = voices.find(voice => voice.lang.includes('zh'));
-            if (chineseVoice) {
-                updateDebugInfo(`找到中文语音: ${chineseVoice.name}`);
-                return chineseVoice;
-            }
-            
-            // 最后返回第一个可用的语音
-            if (voices.length > 0) {
-                updateDebugInfo(`使用默认语音: ${voices[0].name}`);
-                return voices[0];
-            }
-            
-            return null;
+            // 如果没有中文语音，选择第一个可用的语音
+            updateDebugInfo(`选择默认语音: ${voices[0].name}`);
+            return voices[0];
         }
 
         // 更新语音质量信息
@@ -665,7 +649,8 @@
             const currentVoiceType = document.getElementById('currentVoiceType');
             
             if (bestVoice) {
-                if (bestVoice.name.includes('Ting') || bestVoice.name.includes('Mei') || bestVoice.name.includes('Xiao')) {
+                const voiceName = bestVoice.name;
+                if (voiceName.includes('Xiao') || voiceName.includes('Ting') || voiceName.includes('Mei')) {
                     qualityInfo.innerHTML = '语音质量: <strong>优秀</strong> - 使用温柔女声';
                     currentVoiceType.textContent = '温柔女声';
                     qualityIndicator.style.background = '#4CAF50';
@@ -715,66 +700,96 @@
             return validParagraphs.join('。') + '。';
         }
 
-        // 播放语音 - 使用优化设置
+        // 播放语音 - 修复版本
         function playVoice() {
             if (!currentVoiceText) {
                 alert('暂无语音内容');
                 return;
             }
 
-            if (speechSupported) {
-                if (isPlaying) {
-                    stopVoice();
-                    return;
-                }
+            if (!speechSupported) {
+                alert('您的浏览器不支持语音合成，建议使用最新版Chrome浏览器。');
+                return;
+            }
 
+            if (isPlaying) {
                 stopVoice();
-                
-                const firstTwoParagraphs = extractFirstTwoParagraphs(currentVoiceText);
-                
-                currentSpeech = new SpeechSynthesisUtterance(firstTwoParagraphs);
-                
-                // 应用优化设置
-                currentSpeech.rate = VOICE_SETTINGS.rate;
-                currentSpeech.pitch = VOICE_SETTINGS.pitch;
-                currentSpeech.volume = VOICE_SETTINGS.volume;
-                currentSpeech.lang = VOICE_SETTINGS.lang;
-                
-                // 选择最佳语音
-                const bestVoice = findBestGentleVoice();
-                if (bestVoice) {
-                    currentSpeech.voice = bestVoice;
-                    updateDebugInfo(`使用语音: ${bestVoice.name}`);
-                }
-                
-                currentSpeech.onstart = function() {
-                    isPlaying = true;
-                    document.getElementById('playBtn').disabled = true;
-                    document.getElementById('stopBtn').disabled = false;
-                    document.getElementById('voiceStatus').innerHTML = 
-                        '🔊 <strong>语音播放中...</strong> | 温柔女声朗读中';
-                };
-                
-                currentSpeech.onend = function() {
-                    isPlaying = false;
-                    document.getElementById('playBtn').disabled = false;
-                    document.getElementById('stopBtn').disabled = true;
-                    document.getElementById('voiceStatus').innerHTML = 
-                        '✅ 播放完成 | 温柔女声朗读完毕';
-                };
-                
-                currentSpeech.onerror = function(event) {
-                    console.error('语音播放错误:', event);
-                    isPlaying = false;
-                    document.getElementById('playBtn').disabled = false;
-                    document.getElementById('stopBtn').disabled = true;
-                    document.getElementById('voiceStatus').innerHTML = 
-                        '❌ 播放失败 | 请尝试使用Chrome浏览器';
-                };
-                
-                window.speechSynthesis.speak(currentSpeech);
+                return;
+            }
+
+            // 确保语音已加载
+            if (!voicesLoaded) {
+                updateDebugInfo('语音尚未加载完成，请稍后重试');
+                document.getElementById('voiceStatus').innerHTML = 
+                    '⏳ 语音加载中，请稍后重试...';
+                return;
+            }
+
+            stopVoice(); // 停止任何正在播放的语音
+            
+            const firstTwoParagraphs = extractFirstTwoParagraphs(currentVoiceText);
+            updateDebugInfo(`准备朗读文本: ${firstTwoParagraphs.substring(0, 50)}...`);
+            
+            if (!firstTwoParagraphs || firstTwoParagraphs.trim().length === 0) {
+                updateDebugInfo('没有有效的文本内容可朗读');
+                return;
+            }
+            
+            currentSpeech = new SpeechSynthesisUtterance(firstTwoParagraphs);
+            
+            // 应用优化设置
+            currentSpeech.rate = VOICE_SETTINGS.rate;
+            currentSpeech.pitch = VOICE_SETTINGS.pitch;
+            currentSpeech.volume = VOICE_SETTINGS.volume;
+            currentSpeech.lang = VOICE_SETTINGS.lang;
+            
+            // 选择最佳语音
+            const bestVoice = findBestGentleVoice();
+            if (bestVoice) {
+                currentSpeech.voice = bestVoice;
+                updateDebugInfo(`使用语音: ${bestVoice.name}`);
             } else {
-                alert('您的浏览器不支持语音合成，建议使用最新版Chrome浏览器。您可以使用分享功能保存内容。');
+                updateDebugInfo('使用默认语音设置');
+            }
+            
+            // 设置事件监听器
+            currentSpeech.onstart = function() {
+                isPlaying = true;
+                document.getElementById('playBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                document.getElementById('voiceStatus').innerHTML = 
+                    '🔊 <strong>语音播放中...</strong> | 温柔女声朗读中';
+                updateDebugInfo('语音开始播放');
+            };
+            
+            currentSpeech.onend = function() {
+                isPlaying = false;
+                document.getElementById('playBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                document.getElementById('voiceStatus').innerHTML = 
+                    '✅ 播放完成 | 温柔女声朗读完毕';
+                updateDebugInfo('语音播放完成');
+            };
+            
+            currentSpeech.onerror = function(event) {
+                console.error('语音播放错误:', event);
+                isPlaying = false;
+                document.getElementById('playBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                document.getElementById('voiceStatus').innerHTML = 
+                    '❌ 播放失败 | ' + (event.error || '未知错误');
+                updateDebugInfo(`语音播放错误: ${event.error}`);
+            };
+            
+            // 开始播放
+            try {
+                window.speechSynthesis.speak(currentSpeech);
+                updateDebugInfo('已调用 speechSynthesis.speak');
+            } catch (error) {
+                console.error('播放异常:', error);
+                document.getElementById('voiceStatus').innerHTML = 
+                    '❌ 播放异常 | 请刷新页面重试';
+                updateDebugInfo(`播放异常: ${error.message}`);
             }
         }
 
@@ -787,6 +802,7 @@
                 document.getElementById('stopBtn').disabled = true;
                 document.getElementById('voiceStatus').innerHTML = 
                     '⏹️ 已停止播放 | 点击播放按钮重新聆听';
+                updateDebugInfo('语音已停止');
             }
         }
 
@@ -987,20 +1003,9 @@
             });
         });
 
-        // 定期更新语音列表
-        if (speechSupported) {
-            setInterval(() => {
-                if (availableVoices.length === 0) {
-                    availableVoices = speechSynthesis.getVoices();
-                    updateVoiceQualityInfo();
-                }
-            }, 3000);
-        }
-
         // 错误处理
         window.addEventListener('error', function(e) {
             console.error('全局错误:', e.error);
-            // 不显示语音合成的错误，因为这是预期的
             if (!e.error || !e.error.toString().includes('speechSynthesis')) {
                 updateDebugInfo(`全局错误: ${e.error}`);
             }
@@ -1009,7 +1014,6 @@
         // 未处理的Promise拒绝
         window.addEventListener('unhandledrejection', function(e) {
             console.error('未处理的Promise拒绝:', e.reason);
-            // 不显示语音合成的错误
             if (!e.reason || !e.reason.toString().includes('speechSynthesis')) {
                 updateDebugInfo(`Promise拒绝: ${e.reason}`);
             }
