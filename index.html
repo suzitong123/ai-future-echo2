@@ -224,6 +224,21 @@
             line-height: 1.4;
         }
 
+        .debug-info {
+            margin-top: 20px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #666;
+            display: none;
+        }
+
+        .debug-info h4 {
+            margin-bottom: 5px;
+            color: #333;
+        }
+
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -335,18 +350,40 @@
                 </div>
             </div>
         </div>
+
+        <!-- 调试信息区域 -->
+        <div class="debug-info" id="debugInfoContainer">
+            <h4>调试信息</h4>
+            <div id="debugInfo"></div>
+        </div>
     </div>
 
     <script>
-        // Zeabur 环境配置 - 使用相对路径
-        const API_BASE = '';
+        // 动态获取当前域名
+        const API_BASE = window.location.origin;
         const API_ENDPOINT = '/api/generate-capsule';
 
-        console.log('Zeabur 环境配置:', { API_BASE, API_ENDPOINT });
+        console.log('API配置:', { 
+            API_BASE, 
+            API_ENDPOINT,
+            fullUrl: API_BASE + API_ENDPOINT,
+            userAgent: navigator.userAgent 
+        });
 
         let currentVoiceText = '';
         let currentSpeech = null;
         let availableVoices = [];
+
+        // 更新调试信息
+        function updateDebugInfo(message) {
+            const debugInfo = document.getElementById('debugInfo');
+            const debugContainer = document.getElementById('debugInfoContainer');
+            if (debugInfo) {
+                const timestamp = new Date().toLocaleTimeString();
+                debugInfo.innerHTML = `[${timestamp}] ${message}<br>` + debugInfo.innerHTML;
+                debugContainer.style.display = 'block';
+            }
+        }
 
         // 预加载语音引擎
         function preloadVoices() {
@@ -483,7 +520,7 @@
             }
         }
 
-        // 生成未来回音 - Zeabur 适配版本
+        // 生成未来回音 - 修复版
         async function generateCapsule() {
             const userInput = document.getElementById('userInput').value.trim();
             if (!userInput) {
@@ -500,11 +537,16 @@
             loadingElement.style.display = 'block';
             resultElement.style.display = 'none';
 
+            updateDebugInfo('开始生成未来回音...');
+            updateDebugInfo(`用户输入: ${userInput.substring(0, 50)}${userInput.length > 50 ? '...' : ''}`);
+
             try {
-                console.log('发送请求到:', API_BASE + API_ENDPOINT);
+                const fullUrl = API_BASE + API_ENDPOINT;
+                updateDebugInfo(`发送请求到: ${fullUrl}`);
                 
-                // Zeabur API 调用 - 使用相对路径
-                const response = await fetch(API_BASE + API_ENDPOINT, {
+                console.log('发送请求到:', fullUrl);
+                
+                const response = await fetch(fullUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -516,13 +558,18 @@
                 });
 
                 console.log('响应状态:', response.status, response.statusText);
+                updateDebugInfo(`响应状态: ${response.status} ${response.statusText}`);
 
                 if (!response.ok) {
-                    throw new Error(`网络请求失败: ${response.status} ${response.statusText}`);
+                    const errorText = await response.text();
+                    console.error('错误响应内容:', errorText);
+                    updateDebugInfo(`错误响应: ${errorText}`);
+                    throw new Error(`请求失败: ${response.status} ${response.statusText}`);
                 }
 
                 const data = await response.json();
                 console.log('收到响应数据:', data);
+                updateDebugInfo('成功收到AI响应');
 
                 if (data.status === 'error') {
                     throw new Error(data.letter || '生成失败');
@@ -535,9 +582,23 @@
 
                 updateVoiceQualityInfo();
                 resultElement.style.display = 'block';
+                updateDebugInfo('内容生成成功！');
 
             } catch (error) {
                 console.error('API调用错误:', error);
+                updateDebugInfo(`API错误: ${error.message}`);
+                
+                // 显示详细的错误信息
+                let errorMessage = '生成失败，请重试';
+                if (error.message.includes('Failed to fetch')) {
+                    errorMessage = '网络连接失败，请检查网络连接';
+                } else if (error.message.includes('404')) {
+                    errorMessage = 'API接口未找到，请检查部署配置';
+                } else if (error.message.includes('500')) {
+                    errorMessage = '服务器内部错误，请稍后重试';
+                }
+                
+                alert('错误: ' + errorMessage);
                 
                 // 使用模拟数据作为备用
                 const mockLetters = [
@@ -555,11 +616,7 @@
                 
                 updateVoiceQualityInfo();
                 resultElement.style.display = 'block';
-                
-                // 显示详细错误信息（开发时有用）
-                if (error.message.includes('网络请求失败')) {
-                    alert('演示模式：当前显示模拟数据。API连接失败，请检查服务器状态。');
-                }
+                updateDebugInfo('已使用备用数据展示');
 
             } finally {
                 generateBtn.disabled = false;
@@ -571,6 +628,9 @@
         // 页面初始化
         window.addEventListener('load', function() {
             preloadVoices();
+            updateDebugInfo('页面加载完成');
+            updateDebugInfo(`当前域名: ${window.location.origin}`);
+            updateDebugInfo(`用户代理: ${navigator.userAgent}`);
             
             // 添加回车键支持
             document.getElementById('userInput').addEventListener('keypress', function(e) {
@@ -591,11 +651,13 @@
         // 错误处理
         window.addEventListener('error', function(e) {
             console.error('全局错误:', e.error);
+            updateDebugInfo(`全局错误: ${e.error}`);
         });
 
         // 未处理的Promise拒绝
         window.addEventListener('unhandledrejection', function(e) {
             console.error('未处理的Promise拒绝:', e.reason);
+            updateDebugInfo(`Promise拒绝: ${e.reason}`);
         });
     </script>
 </body>
