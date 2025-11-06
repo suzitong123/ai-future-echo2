@@ -302,6 +302,30 @@
             border-left: 4px solid #ff9800;
         }
 
+        .voice-settings {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+
+        .setting-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 8px 0;
+        }
+
+        .setting-label {
+            color: #666;
+        }
+
+        .setting-value {
+            color: #333;
+            font-weight: 500;
+        }
+
         .debug-info {
             margin-top: 20px;
             padding: 10px;
@@ -421,6 +445,22 @@
                     <!-- 动态内容 -->
                 </div>
 
+                <!-- 语音设置信息 -->
+                <div class="voice-settings" id="voiceSettings" style="display: none;">
+                    <div class="setting-item">
+                        <span class="setting-label">语音类型：</span>
+                        <span class="setting-value" id="currentVoiceType">温柔女声</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">语速：</span>
+                        <span class="setting-value" id="currentSpeechRate">适中</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">音调：</span>
+                        <span class="setting-value" id="currentSpeechPitch">柔和</span>
+                    </div>
+                </div>
+
                 <!-- 语音质量信息 -->
                 <div class="voice-quality" id="voiceQualitySection" style="display: none;">
                     <div class="quality-indicator" id="qualityIndicator"></div>
@@ -429,7 +469,7 @@
 
                 <!-- 语音控制按钮 -->
                 <div class="voice-controls" id="voiceControls" style="display: none;">
-                    <button class="voice-btn play-btn" id="playBtn" onclick="playVoice()">▶️ 播放语音</button>
+                    <button class="voice-btn play-btn" id="playBtn" onclick="playVoice()">🎵 播放语音</button>
                     <button class="voice-btn stop-btn" id="stopBtn" onclick="stopVoice()" disabled>⏹️ 停止播放</button>
                 </div>
 
@@ -481,6 +521,34 @@
         let speechSupported = false;
         let isPlaying = false;
 
+        // 语音设置 - 优化为温柔女声
+        const VOICE_SETTINGS = {
+            rate: 0.85,      // 语速稍慢，更温柔
+            pitch: 1.2,      // 音调稍高，更女性化
+            volume: 0.9,     // 音量适中
+            lang: 'zh-CN'
+        };
+
+        // 优先选择的温柔女声语音名称（按优先级排序）
+        const PREFERRED_VOICES = [
+            // 中文温柔女声
+            'Ting-Ting',           // Mac 中文女声
+            'Mei-Jia',             // 中文女声
+            'Sin-Ji',              // 中文女声
+            'Xiaoxiao',            // Azure 晓晓
+            'Xiaoyi',              // Azure 晓伊
+            'Yaoyao',              // Azure 瑶瑶
+            'Samantha',            // iOS 女声
+            'Victoria',            // macOS 女声
+            'Karen',               // macOS 澳式英语女声（发音清晰）
+            'Tessa',               // 清晰女声
+            // 通用女声
+            'Google 中文（中国）',
+            'Microsoft Huihui Desktop',
+            'Microsoft Kangkang Desktop',
+            'Microsoft Yaoyao Desktop'
+        ];
+
         // 更新调试信息
         function updateDebugInfo(message) {
             const debugInfo = document.getElementById('debugInfo');
@@ -498,20 +566,23 @@
             const voiceSupportInfo = document.getElementById('voiceSupportInfo');
             const voiceControls = document.getElementById('voiceControls');
             const voiceQualitySection = document.getElementById('voiceQualitySection');
+            const voiceSettings = document.getElementById('voiceSettings');
             
             updateDebugInfo(`语音合成支持: ${speechSupported}`);
             
             if (speechSupported) {
                 voiceSupportInfo.innerHTML = 
-                    '<div class="support-info support-success">✅ 语音功能可用 - 您可以聆听来自未来的声音</div>';
+                    '<div class="support-info support-success">🎵 语音功能可用 - 使用优化后的温柔女声朗读</div>';
                 voiceControls.style.display = 'flex';
                 voiceQualitySection.style.display = 'flex';
+                voiceSettings.style.display = 'block';
                 preloadVoices();
             } else {
                 voiceSupportInfo.innerHTML = 
                     '<div class="support-info support-warning">⚠️ 当前浏览器不支持语音功能，但您可以使用下方的分享功能保存内容</div>';
                 voiceControls.style.display = 'none';
                 voiceQualitySection.style.display = 'none';
+                voiceSettings.style.display = 'none';
                 document.getElementById('voiceStatus').innerHTML = 
                     '当前浏览器不支持语音播放功能';
             }
@@ -536,46 +607,84 @@
             loadVoices();
         }
 
-        // 更新语音质量信息
-        function updateVoiceQualityInfo() {
-            if (!speechSupported) return;
-            
-            const bestVoice = findBestChineseVoice();
-            const qualityInfo = document.getElementById('voiceQualityInfo');
-            const qualityIndicator = document.getElementById('qualityIndicator');
-            
-            if (bestVoice) {
-                qualityInfo.innerHTML = '语音质量: <strong>良好</strong> - 支持中文朗读';
-                qualityIndicator.style.background = '#4CAF50';
-            } else {
-                qualityInfo.innerHTML = '语音质量: <strong>基础</strong> - 使用默认语音';
-                qualityIndicator.style.background = '#ff9800';
-                qualityIndicator.classList.add('warning');
-            }
-        }
-
-        // 寻找最佳中文语音
-        function findBestChineseVoice() {
+        // 寻找最佳温柔女声
+        function findBestGentleVoice() {
             if (!speechSupported) return null;
             
             const voices = availableVoices.length ? availableVoices : speechSynthesis.getVoices();
             
             if (voices.length === 0) return null;
             
-            const voicePriority = [
-                voice => voice.name.includes('Xiaoxiao') && voice.lang === 'zh-CN',
-                voice => voice.name.includes('Yunxi') && voice.lang === 'zh-CN',
-                voice => voice.name.includes('Microsoft') && voice.name.includes('Female'),
-                voice => voice.lang.includes('zh') && voice.name.includes('Female'),
-                voice => voice.lang.includes('zh')
-            ];
-            
-            for (const priority of voicePriority) {
-                const voice = voices.find(priority);
-                if (voice) return voice;
+            // 优先寻找中文温柔女声
+            for (const voiceName of PREFERRED_VOICES) {
+                const voice = voices.find(v => 
+                    v.name.includes(voiceName) || 
+                    v.name.toLowerCase().includes(voiceName.toLowerCase())
+                );
+                if (voice) {
+                    updateDebugInfo(`找到优选语音: ${voice.name}`);
+                    return voice;
+                }
             }
             
-            return voices.find(voice => voice.lang.includes('zh')) || voices[0];
+            // 其次寻找任何中文女声
+            const chineseFemale = voices.find(voice => 
+                voice.lang.includes('zh') && 
+                (voice.name.toLowerCase().includes('female') || 
+                 voice.name.includes('女') ||
+                 voice.name.includes('Female'))
+            );
+            if (chineseFemale) {
+                updateDebugInfo(`找到中文女声: ${chineseFemale.name}`);
+                return chineseFemale;
+            }
+            
+            // 再寻找任何中文语音
+            const chineseVoice = voices.find(voice => voice.lang.includes('zh'));
+            if (chineseVoice) {
+                updateDebugInfo(`找到中文语音: ${chineseVoice.name}`);
+                return chineseVoice;
+            }
+            
+            // 最后返回第一个可用的语音
+            if (voices.length > 0) {
+                updateDebugInfo(`使用默认语音: ${voices[0].name}`);
+                return voices[0];
+            }
+            
+            return null;
+        }
+
+        // 更新语音质量信息
+        function updateVoiceQualityInfo() {
+            if (!speechSupported) return;
+            
+            const bestVoice = findBestGentleVoice();
+            const qualityInfo = document.getElementById('voiceQualityInfo');
+            const qualityIndicator = document.getElementById('qualityIndicator');
+            const currentVoiceType = document.getElementById('currentVoiceType');
+            
+            if (bestVoice) {
+                if (bestVoice.name.includes('Ting') || bestVoice.name.includes('Mei') || bestVoice.name.includes('Xiao')) {
+                    qualityInfo.innerHTML = '语音质量: <strong>优秀</strong> - 使用温柔女声';
+                    currentVoiceType.textContent = '温柔女声';
+                    qualityIndicator.style.background = '#4CAF50';
+                } else if (bestVoice.lang.includes('zh')) {
+                    qualityInfo.innerHTML = '语音质量: <strong>良好</strong> - 使用中文语音';
+                    currentVoiceType.textContent = '中文语音';
+                    qualityIndicator.style.background = '#4CAF50';
+                } else {
+                    qualityInfo.innerHTML = '语音质量: <strong>基础</strong> - 使用默认语音';
+                    currentVoiceType.textContent = '默认语音';
+                    qualityIndicator.style.background = '#ff9800';
+                    qualityIndicator.classList.add('warning');
+                }
+            } else {
+                qualityInfo.innerHTML = '语音质量: <strong>未知</strong> - 等待语音加载';
+                currentVoiceType.textContent = '加载中...';
+                qualityIndicator.style.background = '#ff9800';
+                qualityIndicator.classList.add('warning');
+            }
         }
 
         // 提取正文前两段
@@ -606,7 +715,7 @@
             return validParagraphs.join('。') + '。';
         }
 
-        // 播放语音
+        // 播放语音 - 使用优化设置
         function playVoice() {
             if (!currentVoiceText) {
                 alert('暂无语音内容');
@@ -624,14 +733,18 @@
                 const firstTwoParagraphs = extractFirstTwoParagraphs(currentVoiceText);
                 
                 currentSpeech = new SpeechSynthesisUtterance(firstTwoParagraphs);
-                currentSpeech.lang = 'zh-CN';
-                currentSpeech.rate = 0.9;
-                currentSpeech.pitch = 1.1;
-                currentSpeech.volume = 1.0;
                 
-                const bestVoice = findBestChineseVoice();
+                // 应用优化设置
+                currentSpeech.rate = VOICE_SETTINGS.rate;
+                currentSpeech.pitch = VOICE_SETTINGS.pitch;
+                currentSpeech.volume = VOICE_SETTINGS.volume;
+                currentSpeech.lang = VOICE_SETTINGS.lang;
+                
+                // 选择最佳语音
+                const bestVoice = findBestGentleVoice();
                 if (bestVoice) {
                     currentSpeech.voice = bestVoice;
+                    updateDebugInfo(`使用语音: ${bestVoice.name}`);
                 }
                 
                 currentSpeech.onstart = function() {
@@ -639,7 +752,7 @@
                     document.getElementById('playBtn').disabled = true;
                     document.getElementById('stopBtn').disabled = false;
                     document.getElementById('voiceStatus').innerHTML = 
-                        '🔊 <strong>语音播放中...</strong> | 正在朗读正文前两段';
+                        '🔊 <strong>语音播放中...</strong> | 温柔女声朗读中';
                 };
                 
                 currentSpeech.onend = function() {
@@ -647,7 +760,7 @@
                     document.getElementById('playBtn').disabled = false;
                     document.getElementById('stopBtn').disabled = true;
                     document.getElementById('voiceStatus').innerHTML = 
-                        '✅ 播放完成 | 正文前两段朗读完毕';
+                        '✅ 播放完成 | 温柔女声朗读完毕';
                 };
                 
                 currentSpeech.onerror = function(event) {
@@ -808,7 +921,7 @@
                 // 更新语音状态
                 if (speechSupported) {
                     document.getElementById('voiceStatus').innerHTML = 
-                        '✅ 准备就绪 | 点击播放聆听正文前两段';
+                        '✅ 准备就绪 | 点击播放聆听温柔女声朗读';
                     updateVoiceQualityInfo();
                 }
 
@@ -845,7 +958,7 @@
                 
                 if (speechSupported) {
                     document.getElementById('voiceStatus').innerHTML = 
-                        '🎵 演示模式 | 点击播放试听正文前两段';
+                        '🎵 演示模式 | 点击播放试听温柔女声';
                     updateVoiceQualityInfo();
                 }
 
