@@ -142,12 +142,83 @@
             overflow-wrap: break-word;
         }
 
+        .voice-controls {
+            display: flex;
+            gap: 10px;
+            margin: 12px 0;
+        }
+
+        .voice-btn {
+            padding: 14px 20px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            flex: 1;
+            min-height: 48px;
+            touch-action: manipulation;
+        }
+
+        .play-btn {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .play-btn:hover {
+            background: #45a049;
+            transform: translateY(-1px);
+        }
+
+        .play-btn:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .stop-btn {
+            background: #f44336;
+            color: white;
+        }
+
+        .stop-btn:hover {
+            background: #da190b;
+            transform: translateY(-1px);
+        }
+
+        .stop-btn:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .voice-quality {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 10px 0;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .quality-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4CAF50;
+        }
+
+        .quality-indicator.warning {
+            background: #ff9800;
+        }
+
         .share-section {
-            margin-top: 25px;
+            margin-top: 20px;
             padding: 15px;
             background: #f0f8ff;
             border-radius: 12px;
-            border-left: 4px solid #4CAF50;
+            border-left: 4px solid #2196F3;
         }
 
         .share-buttons {
@@ -172,9 +243,17 @@
             color: white;
         }
 
+        .copy-btn:hover {
+            background: #5a6fd8;
+        }
+
         .save-btn {
             background: #4CAF50;
             color: white;
+        }
+
+        .save-btn:hover {
+            background: #45a049;
         }
 
         .loading {
@@ -195,6 +274,32 @@
 
         .loading p {
             font-size: clamp(0.9rem, 4vw, 1rem);
+        }
+
+        #voiceStatus {
+            color: #666;
+            font-size: 13px;
+            margin-top: 8px;
+            line-height: 1.4;
+        }
+
+        .support-info {
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        .support-success {
+            background: #e8f5e8;
+            color: #2e7d32;
+            border-left: 4px solid #4CAF50;
+        }
+
+        .support-warning {
+            background: #fff3e0;
+            color: #ef6c00;
+            border-left: 4px solid #ff9800;
         }
 
         .debug-info {
@@ -235,9 +340,14 @@
                 border-radius: 16px;
             }
             
-            .share-buttons {
+            .voice-controls, .share-buttons {
                 flex-direction: column;
                 gap: 8px;
+            }
+            
+            .voice-btn, .share-btn {
+                padding: 16px 20px;
+                font-size: 16px;
             }
             
             textarea {
@@ -303,21 +413,46 @@
                 <p id="futureText"></p>
             </div>
 
-            <!-- 替换语音功能为分享功能 -->
-            <div class="share-section">
-                <h3>📤 分享这份回音</h3>
-                <p style="margin-bottom: 15px; color: #666; font-size: 14px;">
-                    将这份来自未来的鼓励保存或分享给朋友
-                </p>
-                <div class="share-buttons">
-                    <button class="share-btn copy-btn" onclick="copyToClipboard()">
-                        📋 复制内容
-                    </button>
-                    <button class="share-btn save-btn" onclick="saveAsImage()">
-                        💾 保存为图片
-                    </button>
+            <div class="result-section">
+                <h3>🎙️ 未来的声音</h3>
+                
+                <!-- 语音支持信息 -->
+                <div id="voiceSupportInfo">
+                    <!-- 动态内容 -->
                 </div>
-                <div id="shareStatus" style="margin-top: 10px; font-size: 13px; color: #666;"></div>
+
+                <!-- 语音质量信息 -->
+                <div class="voice-quality" id="voiceQualitySection" style="display: none;">
+                    <div class="quality-indicator" id="qualityIndicator"></div>
+                    <span id="voiceQualityInfo">语音质量检测中...</span>
+                </div>
+
+                <!-- 语音控制按钮 -->
+                <div class="voice-controls" id="voiceControls" style="display: none;">
+                    <button class="voice-btn play-btn" id="playBtn" onclick="playVoice()">▶️ 播放语音</button>
+                    <button class="voice-btn stop-btn" id="stopBtn" onclick="stopVoice()" disabled>⏹️ 停止播放</button>
+                </div>
+
+                <div id="voiceStatus">
+                    <!-- 状态信息 -->
+                </div>
+                
+                <!-- 备用分享功能 -->
+                <div class="share-section">
+                    <h4>📤 分享这份回音</h4>
+                    <p style="margin-bottom: 15px; color: #666; font-size: 14px;">
+                        将这份来自未来的鼓励保存或分享给朋友
+                    </p>
+                    <div class="share-buttons">
+                        <button class="share-btn copy-btn" onclick="copyToClipboard()">
+                            📋 复制内容
+                        </button>
+                        <button class="share-btn save-btn" onclick="saveAsText()">
+                            💾 保存为文本
+                        </button>
+                    </div>
+                    <div id="shareStatus" style="margin-top: 10px; font-size: 13px; color: #666;"></div>
+                </div>
             </div>
         </div>
 
@@ -340,7 +475,11 @@
             userAgent: navigator.userAgent 
         });
 
-        let currentLetter = '';
+        let currentVoiceText = '';
+        let currentSpeech = null;
+        let availableVoices = [];
+        let speechSupported = false;
+        let isPlaying = false;
 
         // 更新调试信息
         function updateDebugInfo(message) {
@@ -353,14 +492,199 @@
             }
         }
 
+        // 检查语音支持并更新界面
+        function checkAndUpdateVoiceSupport() {
+            speechSupported = 'speechSynthesis' in window;
+            const voiceSupportInfo = document.getElementById('voiceSupportInfo');
+            const voiceControls = document.getElementById('voiceControls');
+            const voiceQualitySection = document.getElementById('voiceQualitySection');
+            
+            updateDebugInfo(`语音合成支持: ${speechSupported}`);
+            
+            if (speechSupported) {
+                voiceSupportInfo.innerHTML = 
+                    '<div class="support-info support-success">✅ 语音功能可用 - 您可以聆听来自未来的声音</div>';
+                voiceControls.style.display = 'flex';
+                voiceQualitySection.style.display = 'flex';
+                preloadVoices();
+            } else {
+                voiceSupportInfo.innerHTML = 
+                    '<div class="support-info support-warning">⚠️ 当前浏览器不支持语音功能，但您可以使用下方的分享功能保存内容</div>';
+                voiceControls.style.display = 'none';
+                voiceQualitySection.style.display = 'none';
+                document.getElementById('voiceStatus').innerHTML = 
+                    '当前浏览器不支持语音播放功能';
+            }
+        }
+
+        // 预加载语音引擎
+        function preloadVoices() {
+            if (!speechSupported) return;
+            
+            availableVoices = speechSynthesis.getVoices();
+            
+            const loadVoices = () => {
+                availableVoices = speechSynthesis.getVoices();
+                updateVoiceQualityInfo();
+                
+                if (availableVoices.length === 0) {
+                    setTimeout(loadVoices, 1000);
+                }
+            };
+            
+            speechSynthesis.onvoiceschanged = loadVoices;
+            loadVoices();
+        }
+
+        // 更新语音质量信息
+        function updateVoiceQualityInfo() {
+            if (!speechSupported) return;
+            
+            const bestVoice = findBestChineseVoice();
+            const qualityInfo = document.getElementById('voiceQualityInfo');
+            const qualityIndicator = document.getElementById('qualityIndicator');
+            
+            if (bestVoice) {
+                qualityInfo.innerHTML = '语音质量: <strong>良好</strong> - 支持中文朗读';
+                qualityIndicator.style.background = '#4CAF50';
+            } else {
+                qualityInfo.innerHTML = '语音质量: <strong>基础</strong> - 使用默认语音';
+                qualityIndicator.style.background = '#ff9800';
+                qualityIndicator.classList.add('warning');
+            }
+        }
+
+        // 寻找最佳中文语音
+        function findBestChineseVoice() {
+            if (!speechSupported) return null;
+            
+            const voices = availableVoices.length ? availableVoices : speechSynthesis.getVoices();
+            
+            if (voices.length === 0) return null;
+            
+            const voicePriority = [
+                voice => voice.name.includes('Xiaoxiao') && voice.lang === 'zh-CN',
+                voice => voice.name.includes('Yunxi') && voice.lang === 'zh-CN',
+                voice => voice.name.includes('Microsoft') && voice.name.includes('Female'),
+                voice => voice.lang.includes('zh') && voice.name.includes('Female'),
+                voice => voice.lang.includes('zh')
+            ];
+            
+            for (const priority of voicePriority) {
+                const voice = voices.find(priority);
+                if (voice) return voice;
+            }
+            
+            return voices.find(voice => voice.lang.includes('zh')) || voices[0];
+        }
+
+        // 提取正文前两段
+        function extractFirstTwoParagraphs(text) {
+            const paragraphs = text.split('\n\n').filter(p => p.trim().length > 0);
+            
+            let startIndex = 0;
+            for (let i = 0; i < paragraphs.length; i++) {
+                const paragraph = paragraphs[i].trim();
+                if (!paragraph.includes('亲爱的') && !paragraph.includes('你好')) {
+                    startIndex = i;
+                    break;
+                }
+            }
+            
+            const validParagraphs = [];
+            for (let i = startIndex; i < paragraphs.length && validParagraphs.length < 2; i++) {
+                const paragraph = paragraphs[i].trim();
+                if (paragraph && paragraph.length > 10) {
+                    validParagraphs.push(paragraph);
+                }
+            }
+            
+            if (validParagraphs.length === 0 && paragraphs.length > 0) {
+                return paragraphs[0];
+            }
+            
+            return validParagraphs.join('。') + '。';
+        }
+
+        // 播放语音
+        function playVoice() {
+            if (!currentVoiceText) {
+                alert('暂无语音内容');
+                return;
+            }
+
+            if (speechSupported) {
+                if (isPlaying) {
+                    stopVoice();
+                    return;
+                }
+
+                stopVoice();
+                
+                const firstTwoParagraphs = extractFirstTwoParagraphs(currentVoiceText);
+                
+                currentSpeech = new SpeechSynthesisUtterance(firstTwoParagraphs);
+                currentSpeech.lang = 'zh-CN';
+                currentSpeech.rate = 0.9;
+                currentSpeech.pitch = 1.1;
+                currentSpeech.volume = 1.0;
+                
+                const bestVoice = findBestChineseVoice();
+                if (bestVoice) {
+                    currentSpeech.voice = bestVoice;
+                }
+                
+                currentSpeech.onstart = function() {
+                    isPlaying = true;
+                    document.getElementById('playBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = false;
+                    document.getElementById('voiceStatus').innerHTML = 
+                        '🔊 <strong>语音播放中...</strong> | 正在朗读正文前两段';
+                };
+                
+                currentSpeech.onend = function() {
+                    isPlaying = false;
+                    document.getElementById('playBtn').disabled = false;
+                    document.getElementById('stopBtn').disabled = true;
+                    document.getElementById('voiceStatus').innerHTML = 
+                        '✅ 播放完成 | 正文前两段朗读完毕';
+                };
+                
+                currentSpeech.onerror = function(event) {
+                    console.error('语音播放错误:', event);
+                    isPlaying = false;
+                    document.getElementById('playBtn').disabled = false;
+                    document.getElementById('stopBtn').disabled = true;
+                    document.getElementById('voiceStatus').innerHTML = 
+                        '❌ 播放失败 | 请尝试使用Chrome浏览器';
+                };
+                
+                window.speechSynthesis.speak(currentSpeech);
+            } else {
+                alert('您的浏览器不支持语音合成，建议使用最新版Chrome浏览器。您可以使用分享功能保存内容。');
+            }
+        }
+
+        // 停止语音
+        function stopVoice() {
+            if (speechSupported && window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+                isPlaying = false;
+                document.getElementById('playBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                document.getElementById('voiceStatus').innerHTML = 
+                    '⏹️ 已停止播放 | 点击播放按钮重新聆听';
+            }
+        }
+
         // 复制到剪贴板
         function copyToClipboard() {
-            if (!currentLetter) {
+            if (!currentVoiceText) {
                 alert('暂无内容可复制');
                 return;
             }
 
-            navigator.clipboard.writeText(currentLetter).then(() => {
+            navigator.clipboard.writeText(currentVoiceText).then(() => {
                 document.getElementById('shareStatus').innerHTML = 
                     '✅ 已复制到剪贴板！';
                 setTimeout(() => {
@@ -368,27 +692,43 @@
                 }, 3000);
             }).catch(err => {
                 console.error('复制失败:', err);
-                document.getElementById('shareStatus').innerHTML = 
-                    '❌ 复制失败，请手动选择文本复制';
+                // 备用方案
+                const textArea = document.createElement('textarea');
+                textArea.value = currentVoiceText;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    document.getElementById('shareStatus').innerHTML = 
+                        '✅ 已复制到剪贴板！';
+                } catch (e) {
+                    document.getElementById('shareStatus').innerHTML = 
+                        '❌ 复制失败，请手动选择文本复制';
+                }
+                document.body.removeChild(textArea);
+                
+                setTimeout(() => {
+                    document.getElementById('shareStatus').innerHTML = '';
+                }, 3000);
             });
         }
 
-        // 保存为图片（简单版本）
-        function saveAsImage() {
-            if (!currentLetter) {
+        // 保存为文本
+        function saveAsText() {
+            if (!currentVoiceText) {
                 alert('暂无内容可保存');
                 return;
             }
 
             const futureText = document.getElementById('futureText').innerText;
-            const textToSave = `AI未来回音\n\n${futureText}\n\n—— 来自未来的你`;
+            const textToSave = `AI未来回音\n\n${futureText}\n\n—— 来自未来的你\n生成时间: ${new Date().toLocaleString()}`;
             
             // 创建下载链接
-            const blob = new Blob([textToSave], { type: 'text/plain' });
+            const blob = new Blob([textToSave], { type: 'text/plain;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `未来回音_${new Date().toLocaleDateString()}.txt`;
+            a.download = `未来回音_${new Date().toLocaleDateString().replace(/\//g, '-')}.txt`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -463,7 +803,15 @@
 
                 // 成功处理
                 document.getElementById('futureText').textContent = data.letter;
-                currentLetter = data.letter;
+                currentVoiceText = data.letter;
+                
+                // 更新语音状态
+                if (speechSupported) {
+                    document.getElementById('voiceStatus').innerHTML = 
+                        '✅ 准备就绪 | 点击播放聆听正文前两段';
+                    updateVoiceQualityInfo();
+                }
+
                 resultElement.style.display = 'block';
                 updateDebugInfo('内容生成成功！');
 
@@ -493,7 +841,14 @@
                 const randomLetter = mockLetters[Math.floor(Math.random() * mockLetters.length)];
                 
                 document.getElementById('futureText').textContent = randomLetter;
-                currentLetter = randomLetter;
+                currentVoiceText = randomLetter;
+                
+                if (speechSupported) {
+                    document.getElementById('voiceStatus').innerHTML = 
+                        '🎵 演示模式 | 点击播放试听正文前两段';
+                    updateVoiceQualityInfo();
+                }
+
                 resultElement.style.display = 'block';
                 updateDebugInfo('已使用备用数据展示');
 
@@ -506,6 +861,7 @@
 
         // 页面初始化
         window.addEventListener('load', function() {
+            checkAndUpdateVoiceSupport();
             updateDebugInfo('页面加载完成');
             updateDebugInfo(`当前域名: ${window.location.origin}`);
             updateDebugInfo(`用户代理: ${navigator.userAgent}`);
@@ -518,16 +874,32 @@
             });
         });
 
+        // 定期更新语音列表
+        if (speechSupported) {
+            setInterval(() => {
+                if (availableVoices.length === 0) {
+                    availableVoices = speechSynthesis.getVoices();
+                    updateVoiceQualityInfo();
+                }
+            }, 3000);
+        }
+
         // 错误处理
         window.addEventListener('error', function(e) {
             console.error('全局错误:', e.error);
-            updateDebugInfo(`全局错误: ${e.error}`);
+            // 不显示语音合成的错误，因为这是预期的
+            if (!e.error || !e.error.toString().includes('speechSynthesis')) {
+                updateDebugInfo(`全局错误: ${e.error}`);
+            }
         });
 
         // 未处理的Promise拒绝
         window.addEventListener('unhandledrejection', function(e) {
             console.error('未处理的Promise拒绝:', e.reason);
-            updateDebugInfo(`Promise拒绝: ${e.reason}`);
+            // 不显示语音合成的错误
+            if (!e.reason || !e.reason.toString().includes('speechSynthesis')) {
+                updateDebugInfo(`Promise拒绝: ${e.reason}`);
+            }
         });
     </script>
 </body>
