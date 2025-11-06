@@ -14,7 +14,6 @@ module.exports = async (req, res) => {
     console.log('API Key available:', !!ZHIPU_API_KEY);
     
     if (!input) {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({
         letter: '请先输入一些内容，分享你此刻的想法吧！',
         status: 'error'
@@ -33,7 +32,8 @@ module.exports = async (req, res) => {
       const randomLetter = fallbackLetters[Math.floor(Math.random() * fallbackLetters.length)];
       
       res.writeHead(200, { 
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
       });
       return res.end(JSON.stringify({
         letter: randomLetter,
@@ -79,9 +79,10 @@ module.exports = async (req, res) => {
       console.log('AI response received, length:', letter.length);
 
       res.writeHead(200, { 
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
       });
-      res.end(JSON.stringify({
+      return res.end(JSON.stringify({
         letter: letter,
         status: 'success',
         timestamp: new Date().toISOString()
@@ -92,17 +93,18 @@ module.exports = async (req, res) => {
       
       // 备用回复
       const fallbackLetters = [
-        `亲爱的现在的我，\n\n我是5年后的你。看到你此刻的分享，我想告诉你，生命中的每一个阶段都有其独特的意义。\n\n那些让你思考的时刻，那些让你成长的经历，都在悄悄塑造着更美好的你。相信时间的魔力，保持心灵的开放，未来会以你意想不到的方式展开。\n\n—— 永远相信你的未来我`,
+        `亲爱的现在的我，\n\n我是5年后的你。看到你此刻的分享："${input}"，我想告诉你，生命中的每一个阶段都有其独特的意义。\n\n那些让你思考的时刻，那些让你成长的经历，都在悄悄塑造着更美好的你。相信时间的魔力，保持心灵的开放，未来会以你意想不到的方式展开。\n\n—— 永远相信你的未来我`,
 
-        `嗨！现在的你，\n\n我是未来版本的你！听说你正在思考，这真是太棒了！\n\n每一个真诚的思考都是通向更好未来的钥匙。想象一下，3年后的你在回头看时，会深深感激现在这个勇敢探索的自己。\n\n✨ 与你同行的未来我`
+        `嗨！现在的你，\n\n我是未来版本的你！听说你正在思考"${input}"，这真是太棒了！\n\n每一个真诚的思考都是通向更好未来的钥匙。想象一下，3年后的你在回头看时，会深深感激现在这个勇敢探索的自己。\n\n✨ 与你同行的未来我`
       ];
       
       const randomLetter = fallbackLetters[Math.floor(Math.random() * fallbackLetters.length)];
       
       res.writeHead(200, { 
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
       });
-      res.end(JSON.stringify({
+      return res.end(JSON.stringify({
         letter: randomLetter,
         status: 'success',
         mode: 'fallback'
@@ -111,9 +113,10 @@ module.exports = async (req, res) => {
   } catch (error) {
     console.error('Request processing error:', error);
     res.writeHead(500, { 
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*'
     });
-    res.end(JSON.stringify({ 
+    return res.end(JSON.stringify({ 
       error: 'Request processing failed',
       details: error.message,
       status: 'error'
