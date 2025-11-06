@@ -43,6 +43,8 @@ const server = http.createServer(async (req, res) => {
   const parsedUrl = url.parse(req.url, true);
   const pathname = parsedUrl.pathname;
 
+  console.log(`收到请求: ${req.method} ${pathname}`);
+
   // 设置 CORS 头部
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
@@ -59,6 +61,7 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/generate-capsule' && req.method === 'POST') {
     try {
       const body = await parseBody(req);
+      console.log('API请求数据:', body);
       
       // 动态导入 API 处理器
       const apiHandler = require('./api/generate-capsule/index.js');
@@ -66,7 +69,11 @@ const server = http.createServer(async (req, res) => {
     } catch (error) {
       console.error('API Error:', error);
       res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Internal server error', details: error.message }));
+      res.end(JSON.stringify({ 
+        error: 'Internal server error', 
+        details: error.message,
+        status: 'error'
+      }));
     }
     return;
   }
@@ -112,6 +119,7 @@ const server = http.createServer(async (req, res) => {
 server.listen(port, () => {
   console.log(`Server running at http://localhost:${port}/`);
   console.log(`API endpoint: http://localhost:${port}/api/generate-capsule`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 
 // 优雅关闭
