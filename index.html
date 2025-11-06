@@ -339,7 +339,7 @@
                 <h3>🎙️ 未来的声音</h3>
                 <div class="voice-quality">
                     <div class="quality-indicator"></div>
-                    <span id="voiceQualityInfo">高质量语音优化中...</span>
+                    <span id="voiceQualityInfo">语音功能检测中...</span>
                 </div>
                 <div class="voice-controls">
                     <button class="voice-btn play-btn" onclick="playVoice()">▶️ 播放语音</button>
@@ -361,7 +361,7 @@
     <script>
         // 动态获取当前域名
         const API_BASE = window.location.origin;
-        const API_ENDPOINT = '/api/generate-capsule';
+        const API_ENDPOINT = '/api/generate-capsule'; // 修正路径
 
         console.log('API配置:', { 
             API_BASE, 
@@ -373,6 +373,7 @@
         let currentVoiceText = '';
         let currentSpeech = null;
         let availableVoices = [];
+        let speechSupported = false;
 
         // 更新调试信息
         function updateDebugInfo(message) {
@@ -385,9 +386,24 @@
             }
         }
 
+        // 检查语音合成支持
+        function checkSpeechSupport() {
+            speechSupported = 'speechSynthesis' in window;
+            updateDebugInfo(`语音合成支持: ${speechSupported}`);
+            
+            if (speechSupported) {
+                preloadVoices();
+            } else {
+                document.getElementById('voiceQualityInfo').innerHTML = 
+                    '语音功能: <strong>当前浏览器不支持</strong>';
+                document.getElementById('voiceStatus').innerHTML = 
+                    '⚠️ 当前浏览器不支持语音播放功能';
+            }
+        }
+
         // 预加载语音引擎
         function preloadVoices() {
-            if ('speechSynthesis' in window) {
+            if (speechSupported) {
                 availableVoices = speechSynthesis.getVoices();
                 
                 const loadVoices = () => {
@@ -406,6 +422,8 @@
 
         // 更新语音质量信息
         function updateVoiceQualityInfo() {
+            if (!speechSupported) return;
+            
             const bestVoice = findBestChineseVoice();
             const qualityInfo = document.getElementById('voiceQualityInfo');
             
@@ -418,6 +436,8 @@
 
         // 寻找最佳中文语音
         function findBestChineseVoice() {
+            if (!speechSupported) return null;
+            
             const voices = availableVoices.length ? availableVoices : speechSynthesis.getVoices();
             
             if (voices.length === 0) return null;
@@ -473,7 +493,7 @@
                 return;
             }
 
-            if ('speechSynthesis' in window) {
+            if (speechSupported) {
                 stopVoice();
                 
                 const firstTwoParagraphs = extractFirstTwoParagraphs(currentVoiceText);
@@ -513,7 +533,7 @@
 
         // 停止语音
         function stopVoice() {
-            if (window.speechSynthesis) {
+            if (speechSupported && window.speechSynthesis) {
                 window.speechSynthesis.cancel();
                 document.getElementById('voiceStatus').innerHTML = 
                     '⏹️ 已停止播放 | 点击播放按钮重新聆听';
@@ -561,7 +581,12 @@
                 updateDebugInfo(`响应状态: ${response.status} ${response.statusText}`);
 
                 if (!response.ok) {
-                    const errorText = await response.text();
+                    let errorText = '未知错误';
+                    try {
+                        errorText = await response.text();
+                    } catch (e) {
+                        // 忽略解析错误
+                    }
                     console.error('错误响应内容:', errorText);
                     updateDebugInfo(`错误响应: ${errorText}`);
                     throw new Error(`请求失败: ${response.status} ${response.statusText}`);
@@ -572,15 +597,22 @@
                 updateDebugInfo('成功收到AI响应');
 
                 if (data.status === 'error') {
-                    throw new Error(data.letter || '生成失败');
+                    throw new Error(data.letter || data.error || '生成失败');
                 }
 
+                // 成功处理
                 document.getElementById('futureText').textContent = data.letter;
                 currentVoiceText = data.letter;
-                document.getElementById('voiceStatus').innerHTML = 
-                    '✅ 准备就绪 | 点击播放聆听正文前两段';
+                
+                if (speechSupported) {
+                    document.getElementById('voiceStatus').innerHTML = 
+                        '✅ 准备就绪 | 点击播放聆听正文前两段';
+                    updateVoiceQualityInfo();
+                } else {
+                    document.getElementById('voiceStatus').innerHTML = 
+                        '⚠️ 当前浏览器不支持语音播放功能';
+                }
 
-                updateVoiceQualityInfo();
                 resultElement.style.display = 'block';
                 updateDebugInfo('内容生成成功！');
 
@@ -611,10 +643,16 @@
                 
                 document.getElementById('futureText').textContent = randomLetter;
                 currentVoiceText = randomLetter;
-                document.getElementById('voiceStatus').innerHTML = 
-                    '🎵 演示模式 | 点击播放试听正文前两段';
                 
-                updateVoiceQualityInfo();
+                if (speechSupported) {
+                    document.getElementById('voiceStatus').innerHTML = 
+                        '🎵 演示模式 | 点击播放试听正文前两段';
+                    updateVoiceQualityInfo();
+                } else {
+                    document.getElementById('voiceStatus').innerHTML = 
+                        '⚠️ 当前浏览器不支持语音播放功能';
+                }
+                
                 resultElement.style.display = 'block';
                 updateDebugInfo('已使用备用数据展示');
 
@@ -627,7 +665,7 @@
 
         // 页面初始化
         window.addEventListener('load', function() {
-            preloadVoices();
+            checkSpeechSupport();
             updateDebugInfo('页面加载完成');
             updateDebugInfo(`当前域名: ${window.location.origin}`);
             updateDebugInfo(`用户代理: ${navigator.userAgent}`);
@@ -641,23 +679,31 @@
         });
 
         // 定期更新语音列表
-        setInterval(() => {
-            if (availableVoices.length === 0) {
-                availableVoices = speechSynthesis.getVoices();
-                updateVoiceQualityInfo();
-            }
-        }, 3000);
+        if (speechSupported) {
+            setInterval(() => {
+                if (availableVoices.length === 0) {
+                    availableVoices = speechSynthesis.getVoices();
+                    updateVoiceQualityInfo();
+                }
+            }, 3000);
+        }
 
         // 错误处理
         window.addEventListener('error', function(e) {
             console.error('全局错误:', e.error);
-            updateDebugInfo(`全局错误: ${e.error}`);
+            // 不显示语音合成的错误，因为这是预期的
+            if (!e.error || !e.error.toString().includes('speechSynthesis')) {
+                updateDebugInfo(`全局错误: ${e.error}`);
+            }
         });
 
         // 未处理的Promise拒绝
         window.addEventListener('unhandledrejection', function(e) {
             console.error('未处理的Promise拒绝:', e.reason);
-            updateDebugInfo(`Promise拒绝: ${e.reason}`);
+            // 不显示语音合成的错误
+            if (!e.reason || !e.reason.toString().includes('speechSynthesis')) {
+                updateDebugInfo(`Promise拒绝: ${e.reason}`);
+            }
         });
     </script>
 </body>
